@@ -58,7 +58,9 @@ fn main() {
 // Get command from console
 fn read_command() -> String {
     let mut line = String::new();
-    std::io::stdin().read_line(&mut line).unwrap();
+    std::io::stdin()
+        .read_line(&mut line)
+        .expect("Failed to read from command line");
     line
 }
 
