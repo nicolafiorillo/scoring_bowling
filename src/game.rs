@@ -1,3 +1,7 @@
+/*
+ *  Public functions
+ */
+
 #[derive(Debug, Default)]
 pub struct Game {
     score: u16, // max 300 points in game
@@ -37,19 +41,20 @@ pub fn roll(game: &mut Game, pins: u8) -> bool {
         panic!("Game already closed.");
     }
 
-    let bonus = last_frame_bonus(game);
+    // bonus rolls is only for last frame
+    let is_a_bonus_roll = last_frame_bonus(game);
 
-    if !bonus && is_second_roll_in_frame(game) && (game.frame_score + pins) > 10 {
+    if !is_a_bonus_roll && is_second_roll_in_frame(game) && pins_overload(game, pins) {
+        // two rolls sum is greater than 10
         return false;
     }
 
     game.total_rolls = game.total_rolls + 1;
+    game.frame_score = game.frame_score + pins;
 
-    if !bonus {
+    if !is_a_bonus_roll {
         add_score(game, pins);
     }
-
-    game.frame_score = game.frame_score + pins;
 
     if game.sparing {
         add_score(game, pins);
@@ -65,6 +70,7 @@ pub fn roll(game: &mut Game, pins: u8) -> bool {
     }
 
     if is_first_roll_in_frame(game) && is_strike(pins) {
+        // strike!
         add_striking(game);
         game.remaining_rolls_in_frame = 0;
     }
@@ -75,13 +81,9 @@ pub fn roll(game: &mut Game, pins: u8) -> bool {
     true
 }
 
-fn add_striking(game: &mut Game) {
-    if game.striking_1 == 0 {
-        game.striking_1 = 2;
-    } else if game.striking_2 == 0 {
-        game.striking_2 = 2;
-    }
-}
+/*
+ *  Private functions
+ */
 
 fn add_score(game: &mut Game, pins: u8) {
     game.score = game.score + (pins as u16);
@@ -95,6 +97,18 @@ fn last_frame_bonus(game: &mut Game) -> bool {
 
 fn is_strike(pins: u8) -> bool {
     pins == 10
+}
+
+fn pins_overload(game: &Game, pins: u8) -> bool {
+    (game.frame_score + pins) > 10
+}
+
+fn add_striking(game: &mut Game) {
+    if game.striking_1 == 0 {
+        game.striking_1 = 2;
+    } else if game.striking_2 == 0 {
+        game.striking_2 = 2;
+    }
 }
 
 fn update_frame_after_roll(game: &mut Game, pins: u8) {
@@ -137,6 +151,10 @@ fn is_first_roll_in_frame(game: &mut Game) -> bool {
 fn is_second_roll_in_frame(game: &mut Game) -> bool {
     game.remaining_rolls_in_frame == 1
 }
+
+/*
+ *  Tests
+ */
 
 #[cfg(test)]
 mod tests {
@@ -191,6 +209,15 @@ mod tests {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 300);
+        assert_eq!(game_closed(&game), true);
+    }
+
+    #[test]
+    fn the_almost_perfect_game() {
+        let rolls: Vec<u8> = vec![10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 270);
         assert_eq!(game_closed(&game), true);
     }
 
@@ -314,15 +341,6 @@ mod tests {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 150);
-        assert_eq!(game_closed(&game), true);
-    }
-
-    #[test]
-    fn the_almost_perfect_game() {
-        let rolls: Vec<u8> = vec![10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0];
-        let game = play_this_game(&rolls);
-
-        assert_eq!(game.score, 270);
         assert_eq!(game_closed(&game), true);
     }
 
