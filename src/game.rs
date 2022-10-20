@@ -2,6 +2,9 @@
  *  Public functions
  */
 
+mod striking_bonuses;
+use striking_bonuses::*;
+
 #[derive(Debug, Default)]
 pub struct Game {
     score: u16, // max 300 points in game
@@ -11,14 +14,14 @@ pub struct Game {
     frame_score: u8,
     sparing: bool,
     sparing_bonus_roll: bool,
-    striking_1: u8,
-    striking_2: u8,
+    striking_rolls: StrikingBonus,
 }
 
 pub fn new_game() -> Game {
     Game {
         current_frame: 1,
         remaining_rolls_in_frame: 2,
+        striking_rolls: new_strike_rolls(),
         ..Default::default()
     }
 }
@@ -28,8 +31,7 @@ pub fn game_closed(game: &Game) -> bool {
         && game.remaining_rolls_in_frame == 0
         && !game.sparing
         && !game.sparing_bonus_roll
-        && game.striking_1 == 0
-        && game.striking_2 == 0
+        && striking_rolls_are_over(&game.striking_rolls)
 }
 
 pub fn score(game: &Game) -> u16 {
@@ -60,13 +62,10 @@ pub fn roll(game: &mut Game, pins: u8) -> bool {
         add_score(game, pins);
     }
 
-    if game.striking_1 > 0 {
-        add_score(game, pins);
-        game.striking_1 = game.striking_1 - 1;
-    }
-    if game.striking_2 > 0 {
-        add_score(game, pins);
-        game.striking_2 = game.striking_2 - 1;
+    let striking_rolls_bonus = get_striking_rolls_bonus(&game.striking_rolls);
+    if striking_rolls_bonus > 0 {
+        add_score(game, pins * striking_rolls_bonus as u8);
+        decrement_striking_rolls_bonus(&mut game.striking_rolls);
     }
 
     if is_first_roll_in_frame(game) && is_strike(pins) {
@@ -92,7 +91,7 @@ fn add_score(game: &mut Game, pins: u8) {
 fn last_frame_bonus(game: &mut Game) -> bool {
     last_frame(game)
         && game.remaining_rolls_in_frame == 0
-        && (game.striking_1 + game.striking_2) > 0
+        && has_striking_rolls(&game.striking_rolls)
 }
 
 fn is_strike(pins: u8) -> bool {
@@ -104,11 +103,7 @@ fn pins_overload(game: &Game, pins: u8) -> bool {
 }
 
 fn add_striking(game: &mut Game) {
-    if game.striking_1 == 0 {
-        game.striking_1 = 2;
-    } else if game.striking_2 == 0 {
-        game.striking_2 = 2;
-    }
+    increment_striking_rolls_bonus(&mut game.striking_rolls);
 }
 
 fn update_frame_after_roll(game: &mut Game, pins: u8) {
@@ -158,7 +153,8 @@ fn is_second_roll_in_frame(game: &mut Game) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use crate::*;
+    use crate::game::striking_bonuses::*;
+    use crate::game::*;
 
     #[test]
     fn initial_status_of_game() {
@@ -171,8 +167,7 @@ mod tests {
         assert_eq!(game.frame_score, 0);
         assert_eq!(game.sparing_bonus_roll, false);
         assert_eq!(game.sparing, false);
-        assert_eq!(game.striking_1, 0);
-        assert_eq!(game.striking_2, 0);
+        assert_eq!(striking_rolls_are_over(&game.striking_rolls), true);
     }
 
     #[test]
@@ -267,7 +262,7 @@ mod tests {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 10);
-        assert_eq!(game.striking_1, 2);
+        assert_eq!(first_slot(&game.striking_rolls), 2);
         assert_eq!(game_closed(&game), false);
     }
 
@@ -277,7 +272,7 @@ mod tests {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 14);
-        assert_eq!(game.striking_1, 0);
+        assert_eq!(first_slot(&game.striking_rolls), 0);
         assert_eq!(game_closed(&game), false);
     }
 
