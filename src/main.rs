@@ -66,7 +66,7 @@ fn read_command() -> String {
 
 // From user string to command
 fn translate_command(command: &str) -> BoxResult<Command> {
-    let roll_re: Regex = Regex::new("roll\\s+(?P<pins>(10|[0-9]))$").unwrap();
+    let roll_re: Regex = Regex::new("roll\\s+(?P<pins>(10|[0-9]))\\s*$").unwrap();
     let normalized_command = command.trim().to_lowercase();
 
     if normalized_command.starts_with("roll") {
