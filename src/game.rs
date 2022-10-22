@@ -27,135 +27,135 @@ impl Game {
             ..Default::default()
         }
     }
-}
 
-pub fn game_closed(game: &Game) -> bool {
-    game.current_frame == 10
-        && game.remaining_rolls_in_frame == 0
-        && !game.sparing
-        && !game.sparing_bonus_roll
-        && striking_rolls_are_over(&game.striking_rolls)
-}
-
-pub fn score(game: &Game) -> u16 {
-    game.score
-}
-
-pub fn roll(game: &mut Game, pins: u8) -> bool {
-    if game_closed(game) {
-        panic!("Game already closed.");
+    pub fn closed(&self) -> bool {
+        self.current_frame == 10
+            && self.remaining_rolls_in_frame == 0
+            && !self.sparing
+            && !self.sparing_bonus_roll
+            && striking_rolls_are_over(&self.striking_rolls)
     }
 
-    // bonus rolls is only for last frame
-    let is_a_bonus_roll = last_frame_bonus(game);
-
-    if !is_a_bonus_roll && is_second_roll_in_frame(game) && pins_overload(game, pins) {
-        // two rolls sum is greater than 10
-        return false;
+    pub fn score(&self) -> u16 {
+        self.score
     }
 
-    game.total_rolls = game.total_rolls + 1;
-    game.frame_scores.push(pins);
+    pub fn roll(&mut self, pins: u8) -> bool {
+        if self.closed() {
+            panic!("Game already closed.");
+        }
 
-    if !is_a_bonus_roll {
-        add_score(game, pins);
+        // bonus rolls is only for last frame
+        let is_a_bonus_roll = self.last_frame_bonus();
+
+        if !is_a_bonus_roll && self.is_second_roll_in_frame() && self.pins_overload(pins) {
+            // two rolls sum is greater than 10
+            return false;
+        }
+
+        self.total_rolls = self.total_rolls + 1;
+        self.frame_scores.push(pins);
+
+        if !is_a_bonus_roll {
+            self.add_score(pins);
+        }
+
+        if self.sparing {
+            self.add_score(pins);
+        }
+
+        let striking_rolls_bonus = get_striking_rolls_bonus(&self.striking_rolls);
+        if striking_rolls_bonus > 0 {
+            self.add_score(pins * striking_rolls_bonus as u8);
+            decrement_striking_rolls_bonus(&mut self.striking_rolls);
+        }
+
+        if self.is_first_roll_in_frame() && is_strike(pins) {
+            // strike!
+            self.add_striking();
+            self.remaining_rolls_in_frame = 0;
+        }
+
+        self.update_sparing();
+        self.update_frame_after_roll(pins);
+
+        true
     }
 
-    if game.sparing {
-        add_score(game, pins);
+    /*
+     *  Private functions
+     */
+
+    fn add_score(&mut self, pins: u8) {
+        self.score = self.score + (pins as u16);
     }
 
-    let striking_rolls_bonus = get_striking_rolls_bonus(&game.striking_rolls);
-    if striking_rolls_bonus > 0 {
-        add_score(game, pins * striking_rolls_bonus as u8);
-        decrement_striking_rolls_bonus(&mut game.striking_rolls);
+    fn last_frame(&self) -> bool {
+        self.current_frame == 10
     }
 
-    if is_first_roll_in_frame(game) && is_strike(pins) {
-        // strike!
-        add_striking(game);
-        game.remaining_rolls_in_frame = 0;
+    fn last_frame_bonus(&self) -> bool {
+        self.last_frame()
+            && self.remaining_rolls_in_frame == 0
+            && has_striking_rolls(&self.striking_rolls)
     }
 
-    update_sparing(game);
-    update_frame_after_roll(game, pins);
+    fn decrement_rolls_in_frame(&mut self) {
+        if self.remaining_rolls_in_frame > 0 {
+            self.remaining_rolls_in_frame = self.remaining_rolls_in_frame - 1;
+        }
+    }
 
-    true
-}
+    fn rolls_in_frame_are_over(&self) -> bool {
+        self.remaining_rolls_in_frame == 0
+    }
 
-/*
- *  Private functions
- */
+    fn set_to_next_frame(&mut self) {
+        self.remaining_rolls_in_frame = 2;
+        self.current_frame = self.current_frame + 1;
+        self.frame_scores = vec![];
+    }
 
-fn add_score(game: &mut Game, pins: u8) {
-    game.score = game.score + (pins as u16);
-}
+    fn update_frame_after_roll(&mut self, pins: u8) {
+        self.decrement_rolls_in_frame();
+        if !self.last_frame() && (is_strike(pins) || self.rolls_in_frame_are_over()) {
+            self.set_to_next_frame();
+        }
+    }
 
-fn last_frame_bonus(game: &Game) -> bool {
-    last_frame(game)
-        && game.remaining_rolls_in_frame == 0
-        && has_striking_rolls(&game.striking_rolls)
+    fn is_first_roll_in_frame(&self) -> bool {
+        self.remaining_rolls_in_frame == 2
+    }
+
+    fn is_second_roll_in_frame(&self) -> bool {
+        self.remaining_rolls_in_frame == 1
+    }
+
+    fn frame_score(&self) -> u8 {
+        self.frame_scores.iter().sum()
+    }
+
+    fn is_full_score(&self) -> bool {
+        self.frame_score() == 10
+    }
+
+    fn update_sparing(&mut self) {
+        self.sparing_bonus_roll =
+            self.last_frame() && self.is_second_roll_in_frame() && self.is_full_score();
+        self.sparing = self.is_second_roll_in_frame() && self.is_full_score() && !self.last_frame();
+    }
+
+    fn pins_overload(&self, pins: u8) -> bool {
+        (self.frame_score() + pins) > 10
+    }
+
+    fn add_striking(&mut self) {
+        increment_striking_rolls_bonus(&mut self.striking_rolls);
+    }
 }
 
 fn is_strike(pins: u8) -> bool {
     pins == 10
-}
-
-fn pins_overload(game: &Game, pins: u8) -> bool {
-    (frame_score(game) + pins) > 10
-}
-
-fn frame_score(game: &Game) -> u8 {
-    game.frame_scores.iter().sum()
-}
-
-fn is_full_score(game: &Game) -> bool {
-    frame_score(game) == 10
-}
-
-fn add_striking(game: &mut Game) {
-    increment_striking_rolls_bonus(&mut game.striking_rolls);
-}
-
-fn update_frame_after_roll(game: &mut Game, pins: u8) {
-    decrement_rolls_in_frame(game);
-    if !last_frame(game) && (is_strike(pins) || rolls_in_frame_are_over(game)) {
-        set_to_next_frame(game);
-    }
-}
-
-fn decrement_rolls_in_frame(game: &mut Game) {
-    if game.remaining_rolls_in_frame > 0 {
-        game.remaining_rolls_in_frame = game.remaining_rolls_in_frame - 1;
-    }
-}
-
-fn rolls_in_frame_are_over(game: &Game) -> bool {
-    game.remaining_rolls_in_frame == 0
-}
-
-fn last_frame(game: &Game) -> bool {
-    game.current_frame == 10
-}
-
-fn set_to_next_frame(game: &mut Game) {
-    game.remaining_rolls_in_frame = 2;
-    game.current_frame = game.current_frame + 1;
-    game.frame_scores = vec![];
-}
-
-fn update_sparing(game: &mut Game) {
-    game.sparing_bonus_roll =
-        last_frame(game) && is_second_roll_in_frame(game) && is_full_score(game);
-    game.sparing = is_second_roll_in_frame(game) && is_full_score(game) && !last_frame(game);
-}
-
-fn is_first_roll_in_frame(game: &Game) -> bool {
-    game.remaining_rolls_in_frame == 2
-}
-
-fn is_second_roll_in_frame(game: &Game) -> bool {
-    game.remaining_rolls_in_frame == 1
 }
 
 /*
@@ -189,7 +189,7 @@ mod normal_game {
         assert_eq!(game.score, 9);
         assert_eq!(game.current_frame, 1);
         assert_eq!(game.remaining_rolls_in_frame, 1);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -198,7 +198,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 0);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     #[test]
@@ -206,7 +206,7 @@ mod normal_game {
         let rolls: Vec<u8> = vec![0; 19];
         let game = play_this_game(&rolls);
 
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -215,7 +215,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 300);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     #[test]
@@ -224,7 +224,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 270);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     #[test]
@@ -233,7 +233,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 20);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     #[test]
@@ -243,7 +243,7 @@ mod normal_game {
 
         assert_eq!(game.score, 10);
         assert_eq!(game.sparing, true);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -254,7 +254,7 @@ mod normal_game {
         assert_eq!(game.score, 21);
         assert_eq!(game.sparing, false);
         assert_eq!(game.frame_scores, vec![]);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -264,7 +264,7 @@ mod normal_game {
 
         assert_eq!(game.score, 9);
         assert_eq!(game.sparing, false);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -274,7 +274,7 @@ mod normal_game {
 
         assert_eq!(game.score, 10);
         assert_eq!(first_slot(&game.striking_rolls), 2);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -284,7 +284,7 @@ mod normal_game {
 
         assert_eq!(game.score, 14);
         assert_eq!(first_slot(&game.striking_rolls), 0);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -293,7 +293,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.current_frame, 2);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -302,7 +302,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 34);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -311,7 +311,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 33);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -320,7 +320,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 50);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -329,7 +329,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 140);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -338,7 +338,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 145);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -347,7 +347,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 150);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     #[test]
@@ -356,7 +356,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 30);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -365,7 +365,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 14);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -374,7 +374,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 35);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 60);
-        assert_eq!(game_closed(&game), false);
+        assert_eq!(game.closed(), false);
     }
 
     /*
@@ -482,13 +482,13 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, score);
-        assert_eq!(game_closed(&game), true);
+        assert_eq!(game.closed(), true);
     }
 
     fn play_this_game(rolls: &Vec<u8>) -> Game {
         let mut game = Game::new();
         for pins in rolls {
-            roll(&mut game, *pins);
+            game.roll(*pins);
         }
         game
     }

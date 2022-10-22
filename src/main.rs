@@ -27,9 +27,9 @@ fn main() {
     println!("    exit - exit from game");
     println!("");
 
-    let mut current_game = Game::new();
+    let mut game = Game::new();
 
-    while !game_closed(&current_game) {
+    while !game.closed() {
         print!("Command: ");
         let _ = io::stdout().flush();
 
@@ -40,11 +40,11 @@ fn main() {
                 std::process::exit(0);
             }
             Ok(Command::SCORE) => {
-                println!("Score: {}", score(&current_game));
+                println!("Score: {}", game.score());
             }
             Ok(Command::ROLL { pins }) => {
                 println!("Rolled {} pins", pins);
-                if roll(&mut current_game, pins) == false {
+                if game.roll(pins) == false {
                     println!("Invalid pins");
                 }
             }
@@ -52,7 +52,7 @@ fn main() {
         }
     }
 
-    println!("Game over - final score: {}", score(&current_game));
+    println!("Game over - final score: {}", game.score());
 }
 
 // Get command from console
