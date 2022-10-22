@@ -7,11 +7,11 @@ use striking_bonuses::*;
 
 #[derive(Debug, Default)]
 pub struct Game {
-    score: u16, // max 300 points in game
+    score: u16,
     total_rolls: u8,
     current_frame: u8,
     remaining_rolls_in_frame: u8,
-    frame_score: u8,
+    frame_scores: Vec<u8>,
     sparing: bool,
     sparing_bonus_roll: bool,
     striking_rolls: StrikingBonus,
@@ -22,6 +22,7 @@ pub fn new_game() -> Game {
         current_frame: 1,
         remaining_rolls_in_frame: 2,
         striking_rolls: new_strike_rolls(),
+        frame_scores: vec![],
         ..Default::default()
     }
 }
@@ -52,7 +53,7 @@ pub fn roll(game: &mut Game, pins: u8) -> bool {
     }
 
     game.total_rolls = game.total_rolls + 1;
-    game.frame_score = game.frame_score + pins;
+    game.frame_scores.push(pins);
 
     if !is_a_bonus_roll {
         add_score(game, pins);
@@ -88,7 +89,7 @@ fn add_score(game: &mut Game, pins: u8) {
     game.score = game.score + (pins as u16);
 }
 
-fn last_frame_bonus(game: &mut Game) -> bool {
+fn last_frame_bonus(game: &Game) -> bool {
     last_frame(game)
         && game.remaining_rolls_in_frame == 0
         && has_striking_rolls(&game.striking_rolls)
@@ -99,7 +100,15 @@ fn is_strike(pins: u8) -> bool {
 }
 
 fn pins_overload(game: &Game, pins: u8) -> bool {
-    (game.frame_score + pins) > 10
+    (frame_score(game) + pins) > 10
+}
+
+fn frame_score(game: &Game) -> u8 {
+    game.frame_scores.iter().sum()
+}
+
+fn is_full_score(game: &Game) -> bool {
+    frame_score(game) == 10
 }
 
 fn add_striking(game: &mut Game) {
@@ -107,43 +116,43 @@ fn add_striking(game: &mut Game) {
 }
 
 fn update_frame_after_roll(game: &mut Game, pins: u8) {
-    if game.remaining_rolls_in_frame > 0 {
-        game.remaining_rolls_in_frame = game.remaining_rolls_in_frame - 1;
-    }
-
+    decrement_rolls_in_frame(game);
     if !last_frame(game) && (is_strike(pins) || rolls_in_frame_are_over(game)) {
         set_to_next_frame(game);
     }
 }
 
-fn rolls_in_frame_are_over(game: &mut Game) -> bool {
+fn decrement_rolls_in_frame(game: &mut Game) {
+    if game.remaining_rolls_in_frame > 0 {
+        game.remaining_rolls_in_frame = game.remaining_rolls_in_frame - 1;
+    }
+}
+
+fn rolls_in_frame_are_over(game: &Game) -> bool {
     game.remaining_rolls_in_frame == 0
 }
 
-fn last_frame(game: &mut Game) -> bool {
+fn last_frame(game: &Game) -> bool {
     game.current_frame == 10
 }
 
 fn set_to_next_frame(game: &mut Game) {
     game.remaining_rolls_in_frame = 2;
     game.current_frame = game.current_frame + 1;
-    game.frame_score = 0;
+    game.frame_scores = vec![];
 }
 
 fn update_sparing(game: &mut Game) {
     game.sparing_bonus_roll =
-        last_frame(game) && is_second_roll_in_frame(game) && game.frame_score == 10;
-    game.sparing = is_second_roll_in_frame(game) && game.frame_score == 10 && !last_frame(game);
-    if game.sparing {
-        game.frame_score = 0;
-    }
+        last_frame(game) && is_second_roll_in_frame(game) && is_full_score(game);
+    game.sparing = is_second_roll_in_frame(game) && is_full_score(game) && !last_frame(game);
 }
 
-fn is_first_roll_in_frame(game: &mut Game) -> bool {
+fn is_first_roll_in_frame(game: &Game) -> bool {
     game.remaining_rolls_in_frame == 2
 }
 
-fn is_second_roll_in_frame(game: &mut Game) -> bool {
+fn is_second_roll_in_frame(game: &Game) -> bool {
     game.remaining_rolls_in_frame == 1
 }
 
@@ -152,7 +161,7 @@ fn is_second_roll_in_frame(game: &mut Game) -> bool {
  */
 
 #[cfg(test)]
-mod tests {
+mod normal_game {
     use crate::game::striking_bonuses::*;
     use crate::game::*;
 
@@ -164,7 +173,7 @@ mod tests {
         assert_eq!(game.total_rolls, 0);
         assert_eq!(game.current_frame, 1);
         assert_eq!(game.remaining_rolls_in_frame, 2);
-        assert_eq!(game.frame_score, 0);
+        assert_eq!(game.frame_scores, vec![]);
         assert_eq!(game.sparing_bonus_roll, false);
         assert_eq!(game.sparing, false);
         assert_eq!(striking_rolls_are_over(&game.striking_rolls), true);
@@ -242,7 +251,7 @@ mod tests {
 
         assert_eq!(game.score, 21);
         assert_eq!(game.sparing, false);
-        assert_eq!(game.frame_score, 0);
+        assert_eq!(game.frame_scores, vec![]);
         assert_eq!(game_closed(&game), false);
     }
 
