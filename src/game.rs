@@ -29,8 +29,8 @@ impl Game {
     }
 
     pub fn closed(&self) -> bool {
-        self.current_frame == 10
-            && self.remaining_rolls_in_frame == 0
+        self.last_frame()
+            && self.rolls_in_frame_are_over()
             && !self.sparing
             && !self.sparing_bonus_roll
             && striking_rolls_are_over(&self.striking_rolls)
@@ -96,7 +96,7 @@ impl Game {
 
     fn last_frame_bonus(&self) -> bool {
         self.last_frame()
-            && self.remaining_rolls_in_frame == 0
+            && self.rolls_in_frame_are_over()
             && has_striking_rolls(&self.striking_rolls)
     }
 
