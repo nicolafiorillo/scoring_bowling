@@ -17,13 +17,15 @@ pub struct Game {
     striking_rolls: StrikingBonus,
 }
 
-pub fn new_game() -> Game {
-    Game {
-        current_frame: 1,
-        remaining_rolls_in_frame: 2,
-        striking_rolls: new_strike_rolls(),
-        frame_scores: vec![],
-        ..Default::default()
+impl Game {
+    pub fn new() -> Game {
+        Game {
+            current_frame: 1,
+            remaining_rolls_in_frame: 2,
+            striking_rolls: new_strike_rolls(),
+            frame_scores: vec![],
+            ..Default::default()
+        }
     }
 }
 
@@ -167,7 +169,7 @@ mod normal_game {
 
     #[test]
     fn initial_status_of_game() {
-        let game = new_game();
+        let game = Game::new();
 
         assert_eq!(game.score, 0);
         assert_eq!(game.total_rolls, 0);
@@ -484,7 +486,7 @@ mod normal_game {
     }
 
     fn play_this_game(rolls: &Vec<u8>) -> Game {
-        let mut game = new_game();
+        let mut game = Game::new();
         for pins in rolls {
             roll(&mut game, *pins);
         }

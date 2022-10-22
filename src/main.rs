@@ -27,7 +27,7 @@ fn main() {
     println!("    exit - exit from game");
     println!("");
 
-    let mut current_game = new_game();
+    let mut current_game = Game::new();
 
     while !game_closed(&current_game) {
         print!("Command: ");
