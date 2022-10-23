@@ -16,9 +16,9 @@ type BoxResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq)]
 enum Command {
-    ROLL { pins: u8 },
-    SCORE,
-    EXIT,
+    Roll { pins: u8 },
+    Score,
+    Exit,
 }
 
 fn main() {
@@ -27,7 +27,7 @@ fn main() {
     println!("    roll N - N pins rolled (0 to 10)");
     println!("    score - print score of current game");
     println!("    exit - exit from game");
-    println!("");
+    println!();
 
     let mut game = Game::new(Rules::new());
 
@@ -37,20 +37,20 @@ fn main() {
 
         let user_command = read_command();
         match translate_command(&user_command) {
-            Ok(Command::EXIT) => {
+            Ok(Command::Exit) => {
                 println!("Bye.");
                 std::process::exit(0);
             }
-            Ok(Command::SCORE) => {
+            Ok(Command::Score) => {
                 println!("Score: {}", game.score());
             }
-            Ok(Command::ROLL { pins }) => {
+            Ok(Command::Roll { pins }) => {
                 println!("Rolled {} pins", pins);
-                if game.roll(pins) == false {
+                if !game.roll(pins) {
                     println!("Invalid pins");
                 }
             }
-            Err(err) => println!("Error: {}", err.to_string()),
+            Err(err) => println!("Error: {}", err),
         }
     }
 
@@ -75,14 +75,14 @@ fn translate_command(command: &str) -> BoxResult<Command> {
         match roll_re.captures(&normalized_command) {
             Some(c) => {
                 let p: u8 = c["pins"].trim().parse()?;
-                Ok(Command::ROLL { pins: p })
+                Ok(Command::Roll { pins: p })
             }
             _ => bail!("invalid pins"),
         }
     } else {
         match normalized_command.as_str() {
-            "score" => Ok(Command::SCORE),
-            "exit" => Ok(Command::EXIT),
+            "score" => Ok(Command::Score),
+            "exit" => Ok(Command::Exit),
             _ => bail!("invalid command"),
         }
     }
@@ -101,25 +101,25 @@ mod tests {
     #[test]
     fn correct_exit() {
         let command = translate_command("exit");
-        assert_eq!(command.unwrap(), Command::EXIT);
+        assert_eq!(command.unwrap(), Command::Exit);
     }
 
     #[test]
     fn correct_non_trimmed_exit() {
         let command = translate_command(" Exit  ");
-        assert_eq!(command.unwrap(), Command::EXIT);
+        assert_eq!(command.unwrap(), Command::Exit);
     }
 
     #[test]
     fn correct_score() {
         let command = translate_command("score");
-        assert_eq!(command.unwrap(), Command::SCORE);
+        assert_eq!(command.unwrap(), Command::Score);
     }
 
     #[test]
     fn correct_non_trimmed_score() {
         let command = translate_command("scORe ");
-        assert_eq!(command.unwrap(), Command::SCORE);
+        assert_eq!(command.unwrap(), Command::Score);
     }
 
     // Test roll input
@@ -128,7 +128,7 @@ mod tests {
     fn correct_roll_n_pins() {
         for n in 0..10 {
             let command = translate_command(format!("roll {}", n).as_str());
-            assert_eq!(command.unwrap(), Command::ROLL { pins: n });
+            assert_eq!(command.unwrap(), Command::Roll { pins: n });
         }
     }
 
@@ -143,7 +143,7 @@ mod tests {
     #[test]
     fn correct_non_trimmed_roll() {
         let command = translate_command(" roLL  0  ");
-        assert_eq!(command.unwrap(), Command::ROLL { pins: 0 });
+        assert_eq!(command.unwrap(), Command::Roll { pins: 0 });
     }
 
     #[test]

@@ -58,7 +58,7 @@ impl Game {
             return false;
         }
 
-        self.total_rolls = self.total_rolls + 1;
+        self.total_rolls += 1;
         self.frame_scores.push(pins);
 
         if !is_a_bonus_roll {
@@ -92,7 +92,7 @@ impl Game {
      */
 
     fn add_score(&mut self, pins: u8) {
-        self.score = self.score + (pins as u16);
+        self.score += pins as u16;
     }
 
     fn last_frame(&self) -> bool {
@@ -107,7 +107,7 @@ impl Game {
 
     fn decrement_rolls_in_frame(&mut self) {
         if self.remaining_rolls_in_frame > 0 {
-            self.remaining_rolls_in_frame = self.remaining_rolls_in_frame - 1;
+            self.remaining_rolls_in_frame -= 1;
         }
     }
 
@@ -125,9 +125,9 @@ impl Game {
 
     fn set_to_next_frame(&mut self) {
         self.remaining_rolls_in_frame = self.rules.rolls_per_frame;
-        self.current_frame = self.current_frame + 1;
+        self.current_frame += 1;
         self.frame_scores = vec![];
-        self.pins = self.pins + self.rules.pins_increment_per_frame;
+        self.pins += self.rules.pins_increment_per_frame;
     }
 
     fn update_frame_after_roll(&mut self, pins: u8) {
@@ -156,11 +156,11 @@ impl Game {
 
     fn update_sparing(&mut self) {
         if self.sparing > 0 {
-            self.sparing = self.sparing - 1
+            self.sparing -= 1
         }
 
         if self.is_not_first_roll_in_frame() && self.is_full_score() {
-            self.sparing = self.sparing + 1
+            self.sparing += 1
         }
     }
 
