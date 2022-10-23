@@ -11,6 +11,7 @@ use rules::Rules;
 #[derive(Debug, Default)]
 pub struct Game {
     score: u16,
+    pins: u8,
     total_rolls: u8,
     current_frame: u8,
     remaining_rolls_in_frame: u8,
@@ -25,6 +26,7 @@ impl Game {
         Game {
             current_frame: 1,
             remaining_rolls_in_frame: rules.rolls_per_frame,
+            pins: rules.initial_pins,
             striking_rolls: StrikingBonus::new(),
             frame_scores: vec![],
             rules,
@@ -52,7 +54,7 @@ impl Game {
         let is_a_bonus_roll = self.last_frame_bonus();
 
         if !is_a_bonus_roll && self.is_not_first_roll_in_frame() && self.pins_overload(pins) {
-            // more rolls sum is greater than 10
+            // more rolls sum is greater than max pins game rule
             return false;
         }
 
@@ -73,7 +75,7 @@ impl Game {
             self.striking_rolls.decrement_striking_rolls_bonus();
         }
 
-        if self.is_first_roll_in_frame() && is_strike(pins) {
+        if self.is_first_roll_in_frame() && self.is_strike(pins) {
             // strike!
             self.add_striking();
             self.remaining_rolls_in_frame = 0;
@@ -125,11 +127,12 @@ impl Game {
         self.remaining_rolls_in_frame = self.rules.rolls_per_frame;
         self.current_frame = self.current_frame + 1;
         self.frame_scores = vec![];
+        self.pins = self.pins + self.rules.pins_increment_per_frame;
     }
 
     fn update_frame_after_roll(&mut self, pins: u8) {
         self.decrement_rolls_in_frame();
-        if !self.last_frame() && (is_strike(pins) || self.rolls_in_frame_are_over()) {
+        if !self.last_frame() && (self.is_strike(pins) || self.rolls_in_frame_are_over()) {
             self.set_to_next_frame();
         }
     }
@@ -148,7 +151,7 @@ impl Game {
     }
 
     fn is_full_score(&self) -> bool {
-        self.frame_score() == 10
+        self.frame_score() == self.pins
     }
 
     fn update_sparing(&mut self) {
@@ -162,16 +165,16 @@ impl Game {
     }
 
     fn pins_overload(&self, pins: u8) -> bool {
-        (self.frame_score() + pins) > 10
+        (self.frame_score() + pins) > self.pins
     }
 
     fn add_striking(&mut self) {
         self.striking_rolls.increment_striking_rolls_bonus();
     }
-}
 
-fn is_strike(pins: u8) -> bool {
-    pins == 10
+    fn is_strike(&self, pins: u8) -> bool {
+        pins == self.pins
+    }
 }
 
 /*
@@ -189,6 +192,7 @@ mod normal_game {
 
         assert_eq!(game.score, 0);
         assert_eq!(game.total_rolls, 0);
+        assert_eq!(game.pins, 10);
         assert_eq!(game.current_frame, 1);
         assert_eq!(game.remaining_rolls_in_frame, 2);
         assert_eq!(game.frame_scores, vec![]);
@@ -851,5 +855,101 @@ mod twelve_frames_game {
 
         assert_eq!(game.score, 180);
         assert_eq!(game.closed(), true);
+    }
+}
+
+#[cfg(test)]
+mod incremental_pins_game {
+    use crate::game::*;
+
+    #[test]
+    fn initial_status_of_game() {
+        let mut rules = Rules::new();
+        rules.initial_pins = 1;
+        rules.pins_increment_per_frame = 1;
+
+        let game = Game::new(rules);
+
+        assert_eq!(game.score, 0);
+        assert_eq!(game.total_rolls, 0);
+        assert_eq!(game.pins, 1);
+        assert_eq!(game.current_frame, 1);
+        assert_eq!(game.remaining_rolls_in_frame, 2);
+        assert_eq!(game.frame_scores, vec![]);
+        assert_eq!(game.sparing, 0);
+        assert_eq!(game.striking_rolls.striking_rolls_are_over(), true);
+        assert_eq!(game.rules.rolls_per_frame, 2);
+        assert_eq!(game.rules.max_frames, 10);
+        assert_eq!(game.rules.initial_pins, 1);
+        assert_eq!(game.rules.pins_increment_per_frame, 1);
+    }
+
+    #[test]
+    fn the_wrost_game() {
+        let rolls: Vec<u8> = vec![0; 20];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 0);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn simple_strike() {
+        let rolls: Vec<u8> = vec![1];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 1);
+        assert_eq!(game.current_frame, 2);
+        assert_eq!(first_slot(&game.striking_rolls), 2);
+        assert_eq!(game.closed(), false);
+    }
+
+    #[test]
+    fn the_perfect_game() {
+        let rolls: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 10, 10];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 191);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn the_almost_perfect_game() {
+        let rolls: Vec<u8> = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 0, 0];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 161);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn a_normal_game() {
+        let rolls: Vec<u8> = vec![1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 24);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn all_spares() {
+        let rolls: Vec<u8> = vec![1, 2, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 5, 4, 5, 5, 1];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 86);
+        assert_eq!(game.closed(), true);
+    }
+
+    fn play_this_game(rolls: &Vec<u8>) -> Game {
+        let mut rules = Rules::new();
+        rules.initial_pins = 1;
+        rules.pins_increment_per_frame = 1;
+
+        let mut game = Game::new(rules);
+        for pins in rolls {
+            dbg!("{:?}", &game);
+            game.roll(*pins);
+        }
+        game
     }
 }
