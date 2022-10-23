@@ -21,7 +21,7 @@ impl Game {
         Game {
             current_frame: 1,
             remaining_rolls_in_frame: 2,
-            striking_rolls: new_strike_rolls(),
+            striking_rolls: StrikingBonus::new(),
             frame_scores: vec![],
             ..Default::default()
         }
@@ -31,7 +31,7 @@ impl Game {
         self.last_frame()
             && self.rolls_in_frame_are_over()
             && self.sparing_is_over()
-            && striking_rolls_are_over(&self.striking_rolls)
+            && self.striking_rolls.striking_rolls_are_over()
     }
 
     pub fn score(&self) -> u16 {
@@ -62,10 +62,10 @@ impl Game {
             self.add_score(pins);
         }
 
-        let striking_rolls_bonus = get_striking_rolls_bonus(&self.striking_rolls);
+        let striking_rolls_bonus = self.striking_rolls.get_striking_rolls_bonus();
         if striking_rolls_bonus > 0 {
             self.add_score(pins * striking_rolls_bonus as u8);
-            decrement_striking_rolls_bonus(&mut self.striking_rolls);
+            self.striking_rolls.decrement_striking_rolls_bonus();
         }
 
         if self.is_first_roll_in_frame() && is_strike(pins) {
@@ -95,7 +95,7 @@ impl Game {
     fn last_frame_bonus(&self) -> bool {
         self.last_frame()
             && self.rolls_in_frame_are_over()
-            && (has_striking_rolls(&self.striking_rolls) || self.have_sparing())
+            && (self.striking_rolls.has_striking_rolls() || self.have_sparing())
     }
 
     fn decrement_rolls_in_frame(&mut self) {
@@ -160,7 +160,7 @@ impl Game {
     }
 
     fn add_striking(&mut self) {
-        increment_striking_rolls_bonus(&mut self.striking_rolls);
+        self.striking_rolls.increment_striking_rolls_bonus();
     }
 }
 
@@ -187,7 +187,7 @@ mod normal_game {
         assert_eq!(game.remaining_rolls_in_frame, 2);
         assert_eq!(game.frame_scores, vec![]);
         assert_eq!(game.sparing, 0);
-        assert_eq!(striking_rolls_are_over(&game.striking_rolls), true);
+        assert_eq!(game.striking_rolls.striking_rolls_are_over(), true);
     }
 
     #[test]
