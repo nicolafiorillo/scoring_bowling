@@ -40,6 +40,8 @@ impl StrikingBonus {
     }
 }
 
+// Used in tests
+#[allow(dead_code)]
 pub fn first_slot(striking_rolls: &StrikingBonus) -> u8 {
     striking_rolls.rolls[0]
 }
