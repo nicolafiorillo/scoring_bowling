@@ -12,8 +12,7 @@ pub struct Game {
     current_frame: u8,
     remaining_rolls_in_frame: u8,
     frame_scores: Vec<u8>,
-    sparing: bool,
-    sparing_bonus_roll: bool,
+    sparing: u8,
     striking_rolls: StrikingBonus,
 }
 
@@ -31,8 +30,7 @@ impl Game {
     pub fn closed(&self) -> bool {
         self.last_frame()
             && self.rolls_in_frame_are_over()
-            && !self.sparing
-            && !self.sparing_bonus_roll
+            && self.sparing_is_over()
             && striking_rolls_are_over(&self.striking_rolls)
     }
 
@@ -48,8 +46,8 @@ impl Game {
         // bonus rolls is only for last frame
         let is_a_bonus_roll = self.last_frame_bonus();
 
-        if !is_a_bonus_roll && self.is_second_roll_in_frame() && self.pins_overload(pins) {
-            // two rolls sum is greater than 10
+        if !is_a_bonus_roll && !self.is_first_roll_in_frame() && self.pins_overload(pins) {
+            // more rolls sum is greater than 10
             return false;
         }
 
@@ -60,7 +58,7 @@ impl Game {
             self.add_score(pins);
         }
 
-        if self.sparing {
+        if self.have_sparing() {
             self.add_score(pins);
         }
 
@@ -97,7 +95,7 @@ impl Game {
     fn last_frame_bonus(&self) -> bool {
         self.last_frame()
             && self.rolls_in_frame_are_over()
-            && has_striking_rolls(&self.striking_rolls)
+            && (has_striking_rolls(&self.striking_rolls) || self.have_sparing())
     }
 
     fn decrement_rolls_in_frame(&mut self) {
@@ -108,6 +106,14 @@ impl Game {
 
     fn rolls_in_frame_are_over(&self) -> bool {
         self.remaining_rolls_in_frame == 0
+    }
+
+    fn sparing_is_over(&self) -> bool {
+        self.sparing == 0
+    }
+
+    fn have_sparing(&self) -> bool {
+        self.sparing > 0
     }
 
     fn set_to_next_frame(&mut self) {
@@ -140,9 +146,13 @@ impl Game {
     }
 
     fn update_sparing(&mut self) {
-        self.sparing_bonus_roll =
-            self.last_frame() && self.is_second_roll_in_frame() && self.is_full_score();
-        self.sparing = self.is_second_roll_in_frame() && self.is_full_score() && !self.last_frame();
+        if self.sparing > 0 {
+            self.sparing = self.sparing - 1
+        }
+
+        if self.is_second_roll_in_frame() && self.is_full_score() {
+            self.sparing = self.sparing + 1
+        }
     }
 
     fn pins_overload(&self, pins: u8) -> bool {
@@ -176,8 +186,7 @@ mod normal_game {
         assert_eq!(game.current_frame, 1);
         assert_eq!(game.remaining_rolls_in_frame, 2);
         assert_eq!(game.frame_scores, vec![]);
-        assert_eq!(game.sparing_bonus_roll, false);
-        assert_eq!(game.sparing, false);
+        assert_eq!(game.sparing, 0);
         assert_eq!(striking_rolls_are_over(&game.striking_rolls), true);
     }
 
@@ -242,7 +251,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 10);
-        assert_eq!(game.sparing, true);
+        assert_eq!(game.sparing, 1);
         assert_eq!(game.closed(), false);
     }
 
@@ -252,7 +261,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 21);
-        assert_eq!(game.sparing, false);
+        assert_eq!(game.sparing, 0);
         assert_eq!(game.frame_scores, vec![]);
         assert_eq!(game.closed(), false);
     }
@@ -263,7 +272,7 @@ mod normal_game {
         let game = play_this_game(&rolls);
 
         assert_eq!(game.score, 9);
-        assert_eq!(game.sparing, false);
+        assert_eq!(game.sparing, 0);
         assert_eq!(game.closed(), false);
     }
 
