@@ -5,6 +5,9 @@
 mod striking_bonuses;
 use striking_bonuses::*;
 
+mod rules;
+use rules::*;
+
 #[derive(Debug, Default)]
 pub struct Game {
     score: u16,
@@ -14,6 +17,7 @@ pub struct Game {
     frame_scores: Vec<u8>,
     sparing: u8,
     striking_rolls: StrikingBonus,
+    game_rules: Rules,
 }
 
 impl Game {
@@ -23,6 +27,7 @@ impl Game {
             remaining_rolls_in_frame: 2,
             striking_rolls: StrikingBonus::new(),
             frame_scores: vec![],
+            game_rules: Rules::new(),
             ..Default::default()
         }
     }
@@ -117,7 +122,7 @@ impl Game {
     }
 
     fn set_to_next_frame(&mut self) {
-        self.remaining_rolls_in_frame = 2;
+        self.remaining_rolls_in_frame = self.game_rules.rolls_per_frame;
         self.current_frame = self.current_frame + 1;
         self.frame_scores = vec![];
     }
@@ -130,7 +135,7 @@ impl Game {
     }
 
     fn is_first_roll_in_frame(&self) -> bool {
-        self.remaining_rolls_in_frame == 2
+        self.remaining_rolls_in_frame == self.game_rules.rolls_per_frame
     }
 
     fn is_second_roll_in_frame(&self) -> bool {
