@@ -15,6 +15,14 @@ extern crate simple_error;
 type BoxResult<T> = Result<T, Box<dyn Error>>;
 
 #[derive(Debug, PartialEq)]
+enum GameType {
+    Unknown,
+    Normal,
+    Mars,
+    Venus,
+}
+
+#[derive(Debug, PartialEq)]
 enum Command {
     Roll { pins: u8 },
     Score,
@@ -23,13 +31,24 @@ enum Command {
 
 fn main() {
     println!("SCORING BOWLING");
+
+    println!("  Choose the game type:");
+    println!("    1) Normal rules");
+    println!("    2) Mars rules");
+    println!("    3) Venus rules");
+
+    let game_type = ask_game_type();
+    let rules = get_rules_from_game_type(&game_type);
+
+    println!("Starting game with {:?} rules. Good luck!", game_type);
+
     println!("  Commands:");
     println!("    roll N - N pins rolled (0 to 10)");
     println!("    score - print score of current game");
     println!("    exit - exit from game");
     println!();
 
-    let mut game = Game::new(Rules::new());
+    let mut game = Game::new(rules);
 
     while !game.closed() {
         print!("Command: ");
@@ -55,6 +74,57 @@ fn main() {
     }
 
     println!("Game over - final score: {}", game.score());
+}
+
+fn get_rules_from_game_type(game_type: &GameType) -> Rules {
+    let mut rules = Rules::new();
+    match game_type {
+        GameType::Mars => {
+            rules.max_frames = 12;
+            rules.rolls_per_frame = 3;
+        }
+        GameType::Venus => {
+            rules.initial_pins = 1;
+            rules.pins_increment_per_frame = 1;
+        }
+        GameType::Normal => {}
+        _ => panic!("Unknown game type"),
+    }
+
+    rules
+}
+
+fn ask_game_type() -> GameType {
+    let mut game_type = GameType::Unknown;
+
+    while game_type == GameType::Unknown {
+        print!("Game type: ");
+        let _ = io::stdout().flush();
+
+        let user_command = read_command();
+        game_type = translate_game_type(&user_command);
+    }
+
+    game_type
+}
+
+fn translate_game_type(user_command: &str) -> GameType {
+    let game_type_re: Regex = Regex::new("^\\s*(?P<game>([1-3])?)\\s*$").unwrap();
+
+    let game_code: u8 = match game_type_re.captures(user_command) {
+        Some(c) => c["game"].trim().parse::<u8>().unwrap(),
+        _ => {
+            println!("Invalid game type.");
+            0
+        }
+    };
+
+    match game_code {
+        1 => GameType::Normal,
+        2 => GameType::Mars,
+        3 => GameType::Venus,
+        _ => GameType::Unknown,
+    }
 }
 
 // Get command from console
@@ -162,5 +232,37 @@ mod tests {
     fn incorrect_roll_invalid_number() {
         let command = translate_command("roll ab");
         assert_eq!(command.unwrap_err().to_string(), "invalid pins");
+    }
+
+    // Test game type input
+
+    #[test]
+    fn correct_normal_type() {
+        let command = translate_game_type("1");
+        assert_eq!(command, GameType::Normal);
+    }
+
+    #[test]
+    fn correct_mars_type() {
+        let command = translate_game_type("2");
+        assert_eq!(command, GameType::Mars);
+    }
+
+    #[test]
+    fn correct_venus_type() {
+        let command = translate_game_type("3");
+        assert_eq!(command, GameType::Venus);
+    }
+
+    #[test]
+    fn incorrect_game_type() {
+        let command = translate_game_type("0");
+        assert_eq!(command, GameType::Unknown);
+    }
+
+    #[test]
+    fn invalid_game_type() {
+        let command = translate_game_type("aa");
+        assert_eq!(command, GameType::Unknown);
     }
 }
