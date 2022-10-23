@@ -51,7 +51,7 @@ impl Game {
         // bonus rolls is only for last frame
         let is_a_bonus_roll = self.last_frame_bonus();
 
-        if !is_a_bonus_roll && !self.is_first_roll_in_frame() && self.pins_overload(pins) {
+        if !is_a_bonus_roll && self.is_not_first_roll_in_frame() && self.pins_overload(pins) {
             // more rolls sum is greater than 10
             return false;
         }
@@ -138,8 +138,9 @@ impl Game {
         self.remaining_rolls_in_frame == self.game_rules.rolls_per_frame
     }
 
-    fn is_second_roll_in_frame(&self) -> bool {
-        self.remaining_rolls_in_frame == 1
+    fn is_not_first_roll_in_frame(&self) -> bool {
+        self.remaining_rolls_in_frame != self.game_rules.rolls_per_frame
+            && self.remaining_rolls_in_frame != 0
     }
 
     fn frame_score(&self) -> u8 {
@@ -155,7 +156,7 @@ impl Game {
             self.sparing = self.sparing - 1
         }
 
-        if self.is_second_roll_in_frame() && self.is_full_score() {
+        if self.is_not_first_roll_in_frame() && self.is_full_score() {
             self.sparing = self.sparing + 1
         }
     }
