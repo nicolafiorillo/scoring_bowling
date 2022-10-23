@@ -94,7 +94,7 @@ impl Game {
     }
 
     fn last_frame(&self) -> bool {
-        self.current_frame == 10
+        self.current_frame == self.rules.max_frames
     }
 
     fn last_frame_bonus(&self) -> bool {
@@ -195,6 +195,7 @@ mod normal_game {
         assert_eq!(game.sparing, 0);
         assert_eq!(game.striking_rolls.striking_rolls_are_over(), true);
         assert_eq!(game.rules.rolls_per_frame, 2);
+        assert_eq!(game.rules.max_frames, 10);
     }
 
     #[test]
@@ -763,5 +764,92 @@ mod three_rolls_per_frame_game {
             game.roll(*pins);
         }
         game
+    }
+}
+
+#[cfg(test)]
+mod twelve_frames_game {
+    use crate::game::*;
+
+    #[test]
+    fn initial_status_of_game() {
+        let mut rules = Rules::new();
+        rules.max_frames = 12;
+
+        let game = Game::new(rules);
+
+        assert_eq!(game.score, 0);
+        assert_eq!(game.total_rolls, 0);
+        assert_eq!(game.current_frame, 1);
+        assert_eq!(game.remaining_rolls_in_frame, 2);
+        assert_eq!(game.frame_scores, vec![]);
+        assert_eq!(game.sparing, 0);
+        assert_eq!(game.striking_rolls.striking_rolls_are_over(), true);
+        assert_eq!(game.rules.rolls_per_frame, 2);
+        assert_eq!(game.rules.max_frames, 12);
+    }
+
+    #[test]
+    fn the_wrost_game() {
+        let rolls: Vec<u8> = vec![0; 24];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 0);
+        assert_eq!(game.closed(), true);
+    }
+
+    fn play_this_game(rolls: &Vec<u8>) -> Game {
+        let mut rules = Rules::new();
+        rules.max_frames = 12;
+
+        let mut game = Game::new(rules);
+        for pins in rolls {
+            game.roll(*pins);
+        }
+        game
+    }
+
+    #[test]
+    fn the_wrost_game_but_not_finished_yet() {
+        let rolls: Vec<u8> = vec![0; 23];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.closed(), false);
+    }
+
+    #[test]
+    fn the_perfect_game() {
+        let rolls: Vec<u8> = vec![10; 14];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 360);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn the_almost_perfect_game() {
+        let rolls: Vec<u8> = vec![10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 0, 0];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 330);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn a_normal_game() {
+        let rolls: Vec<u8> = vec![1; 24];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 24);
+        assert_eq!(game.closed(), true);
+    }
+
+    #[test]
+    fn all_spares() {
+        let rolls: Vec<u8> = vec![5; 25];
+        let game = play_this_game(&rolls);
+
+        assert_eq!(game.score, 180);
+        assert_eq!(game.closed(), true);
     }
 }
