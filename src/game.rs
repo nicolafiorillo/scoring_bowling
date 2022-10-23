@@ -5,8 +5,8 @@
 mod striking_bonuses;
 use striking_bonuses::*;
 
-mod rules;
-use rules::*;
+pub(crate) mod rules; // TODO: pub(crate)???
+use rules::Rules;
 
 #[derive(Debug, Default)]
 pub struct Game {
@@ -17,17 +17,17 @@ pub struct Game {
     frame_scores: Vec<u8>,
     sparing: u8,
     striking_rolls: StrikingBonus,
-    game_rules: Rules,
+    rules: Rules,
 }
 
 impl Game {
-    pub fn new() -> Game {
+    pub fn new(rules: Rules) -> Game {
         Game {
             current_frame: 1,
             remaining_rolls_in_frame: 2,
             striking_rolls: StrikingBonus::new(),
             frame_scores: vec![],
-            game_rules: Rules::new(),
+            rules,
             ..Default::default()
         }
     }
@@ -122,7 +122,7 @@ impl Game {
     }
 
     fn set_to_next_frame(&mut self) {
-        self.remaining_rolls_in_frame = self.game_rules.rolls_per_frame;
+        self.remaining_rolls_in_frame = self.rules.rolls_per_frame;
         self.current_frame = self.current_frame + 1;
         self.frame_scores = vec![];
     }
@@ -135,11 +135,11 @@ impl Game {
     }
 
     fn is_first_roll_in_frame(&self) -> bool {
-        self.remaining_rolls_in_frame == self.game_rules.rolls_per_frame
+        self.remaining_rolls_in_frame == self.rules.rolls_per_frame
     }
 
     fn is_not_first_roll_in_frame(&self) -> bool {
-        self.remaining_rolls_in_frame != self.game_rules.rolls_per_frame
+        self.remaining_rolls_in_frame != self.rules.rolls_per_frame
             && self.remaining_rolls_in_frame != 0
     }
 
@@ -185,7 +185,7 @@ mod normal_game {
 
     #[test]
     fn initial_status_of_game() {
-        let game = Game::new();
+        let game = Game::new(Rules::new());
 
         assert_eq!(game.score, 0);
         assert_eq!(game.total_rolls, 0);
@@ -501,7 +501,7 @@ mod normal_game {
     }
 
     fn play_this_game(rolls: &Vec<u8>) -> Game {
-        let mut game = Game::new();
+        let mut game = Game::new(Rules::new());
         for pins in rolls {
             game.roll(*pins);
         }

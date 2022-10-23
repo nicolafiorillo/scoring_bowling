@@ -6,6 +6,8 @@ use regex::Regex;
 mod game;
 use game::*;
 
+use game::rules::Rules;
+
 #[macro_use]
 extern crate simple_error;
 
@@ -27,7 +29,7 @@ fn main() {
     println!("    exit - exit from game");
     println!("");
 
-    let mut game = Game::new();
+    let mut game = Game::new(Rules::new());
 
     while !game.closed() {
         print!("Command: ");
