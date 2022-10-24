@@ -31,5 +31,5 @@ Note the `-i` flag to interact with console (STDIN is open).
 ### Remove built docker image
 
 ```Bash
-docker rmi -i scoring_bowling:latest
+docker rmi -f scoring_bowling:latest
 ```
