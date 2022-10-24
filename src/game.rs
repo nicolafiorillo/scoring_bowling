@@ -1,7 +1,3 @@
-/*
- *  Public functions
- */
-
 mod striking_bonuses;
 use striking_bonuses::*;
 
@@ -22,6 +18,10 @@ pub struct Game {
 }
 
 impl Game {
+    /*
+     *  Public functions
+     */
+
     pub fn new(rules: Rules) -> Game {
         Game {
             current_frame: 1,
